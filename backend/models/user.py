@@ -1,16 +1,32 @@
-from sqlalchemy import Column, Integer, String, Date, Boolean, ForeignKey
-from database import Base, engine
+from datetime import datetime, timezone
+
+from sqlalchemy import Column, Integer, String, DateTime, Enum
 from sqlalchemy.orm import relationship
 
+from database import Base
+from models.enums import RoleEnum
+
+
 class User(Base):
-    __tablename__ = 'users'
+    __tablename__ = "users"
 
     id = Column(Integer, primary_key=True, index=True)
-    name = Column(String, unique=True, index=True, nullable=False)
-    email = Column(String, unique=True, index=True, nullable=False)
+    name = Column(String, nullable=False)
+    email = Column(String, unique=True, nullable=False, index=True)
     password_hash = Column(String, nullable=False)
-    role = Column(String, default='employee', nullable=False)
-    created_at = Column(Date, nullable=False)
+    role = Column(
+        Enum(RoleEnum, values_callable=lambda x: [e.value for e in x], native_enum=False),
+        nullable=False,
+    )
+    created_at = Column(DateTime, nullable=False, default=lambda: datetime.now(timezone.utc))
 
-    # Define relationship with Ticket model
-    tickets = relationship("Ticket", back_populates="user")
+    tickets_created = relationship(
+        "Ticket", foreign_keys="Ticket.created_by", back_populates="creator"
+    )
+    tickets_assigned = relationship(
+        "Ticket", foreign_keys="Ticket.assignee_id", back_populates="assignee"
+    )
+    comments = relationship("Comment", back_populates="user")
+
+    def __repr__(self):
+        return f"<User id={self.id} email={self.email!r}>"
