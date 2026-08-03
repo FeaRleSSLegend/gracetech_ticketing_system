@@ -1,0 +1,88 @@
+# Python virtual environment
+.venv/
+
+# Python cache files
+__pycache__/
+*.py[cod]
+*$py.class
+
+# Packaging and dependency manager
+.venv/
+venv/
+ENV/
+env/
+python-env/
+poetry.lock
+uv.lock
+
+# Python environment files
+.Python
+.python-version
+
+# IDE/editor files
+.vscode/
+.idea/
+*.sublime-project
+*.sublime-workspace
+
+# Logs and runtime files
+*.log
+*.pot
+*.mo
+*.pid
+*.seed
+*.cover
+.coverage
+.coverage.*
+.cache/
+nosetests.xml
+coverage.xml
+*.cover
+*.py,cover
+*.sqlite3
+*.db
+
+# FastAPI / Uvicorn
+*.sock
+
+tempfiles/
+
+# Uploads and local media
+uploads/
+
+# OS files
+.DS_Store
+Thumbs.db
+
+# Node modules (if any frontend/tooling added later)
+node_modules/
+
+# GitHub workflows and CI caches
+.hypothesis/
+.pytest_cache/
+
+# Editor backup files
+*~
+*.swp
+*.swo
+*.tmp
+*.bak
+*.orig
+
+# Secret/local config
+.env
+.env.*
+
+# Build directories
+build/
+dist/
+*.egg-info/
+.eggs/
+
+# MyPy
+.mypy_cache/
+.dmypy.json
+.dmypy.json
+
+# Pyre
+.pyre/
