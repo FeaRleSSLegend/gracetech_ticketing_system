@@ -1,18 +1,20 @@
 from collections.abc import Generator
 
+import jwt
 from fastapi import Depends, HTTPException, status
 from fastapi.security import OAuth2PasswordBearer
 from sqlalchemy.orm import Session
 
 from core.security import decode_access_token
-from database import engine
+from database import SessionLocal
+from models.enums import RoleEnum
 from models.user import User
 
 oauth2_scheme = OAuth2PasswordBearer(tokenUrl="/api/auth/login")
 
 
 def get_db() -> Generator[Session, None, None]:
-    db = Session(bind=engine)
+    db = SessionLocal()
     try:
         yield db
     finally:
@@ -23,7 +25,7 @@ def get_current_user(
     token: str = Depends(oauth2_scheme),
     db: Session = Depends(get_db),
 ) -> User:
-    credentials_exception = HTTPException(
+    credentials_error = HTTPException(
         status_code=status.HTTP_401_UNAUTHORIZED,
         detail="Could not validate credentials",
         headers={"WWW-Authenticate": "Bearer"},
@@ -33,12 +35,23 @@ def get_current_user(
         payload = decode_access_token(token)
         user_id = payload.get("sub")
         if user_id is None:
-            raise credentials_exception
-    except Exception as exc:
-        raise credentials_exception from exc
+            raise credentials_error
+    except jwt.PyJWTError:
+        raise credentials_error
 
-    user = db.query(User).filter(User.id == int(user_id)).first()
+    user = db.get(User, int(user_id))
     if user is None:
-        raise credentials_exception
-
+        raise credentials_error
     return user
+
+
+def require_role(*allowed_roles: RoleEnum):
+    def role_checker(current_user: User = Depends(get_current_user)) -> User:
+        if current_user.role not in allowed_roles:
+            raise HTTPException(
+                status_code=status.HTTP_401_UNAUTHORIZED,
+                detail="You do not have permission to perform this action",
+            )
+        return current_user
+
+    return role_checker

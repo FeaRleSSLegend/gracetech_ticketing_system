@@ -15,4 +15,3 @@ class Attachment(Base):
     updated_at = Column(Date, nullable=False, default=date.today)
 
     tickets = relationship("Ticket", back_populates="attachments")
-

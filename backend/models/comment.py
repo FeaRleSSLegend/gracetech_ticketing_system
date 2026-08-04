@@ -17,3 +17,6 @@ class Comment(Base):
 
     ticket = relationship("Ticket", back_populates="comments")
     user = relationship("User", back_populates="comments")
+
+    def __repr__(self):
+        return f"<Comment id={self.id} ticket_id={self.ticket_id}>"
