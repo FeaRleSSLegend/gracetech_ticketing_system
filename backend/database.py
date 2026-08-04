@@ -1,15 +1,15 @@
-# Initialising the database connection and engine
 from sqlalchemy import create_engine
-from sqlalchemy import event
+from sqlalchemy.orm import declarative_base
 
-engine = create_engine('sqlite:///ticketdatabase.db')
+Base = declarative_base()
+engine = create_engine("sqlite:///ticketdatabase.db", connect_args={"check_same_thread": False})
 
-@event.listen
-def set_sqlite_pragma(dbapi_connection, connection_record):
-    cursor = dbapi_connection.cursor()
-    # Enabling foreign key constraints
-    cursor.execute('pragma foreign_keys=ON')
-    cursor.close()
 
-# tables will be created in indvidual files in models/
+def init_db() -> None:
+    import models.attachment  # noqa: F401
+    import models.comment  # noqa: F401
+    import models.ticket  # noqa: F401
+    import models.user  # noqa: F401
+
+    Base.metadata.create_all(bind=engine)
 
