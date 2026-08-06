@@ -9,7 +9,7 @@ from models.enums import PriorityEnum, CategoryEnum, StatusEnum
 class TicketCreate(BaseModel):
     title: str
     description: str
-    status: StatusEnum
+    status: StatusEnum = "open  "
     category: CategoryEnum
 
 
