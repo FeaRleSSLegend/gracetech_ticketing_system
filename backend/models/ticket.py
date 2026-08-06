@@ -1,10 +1,12 @@
-from datetime import datetime, timezone
+from datetime import date
 
-from sqlalchemy import Column, Integer, String, DateTime, ForeignKey, Enum
+from sqlalchemy import Column, Date, ForeignKey, Integer, String
 from sqlalchemy.orm import relationship
 
 from database import Base
-from models.enums import PriorityEnum, CategoryEnum, StatusEnum
+
+from models.attachment import Attachment  # noqa: F401
+from models.comment import Comment  # noqa: F401
 
 
 class Ticket(Base):
@@ -13,33 +15,13 @@ class Ticket(Base):
     id = Column(Integer, primary_key=True, index=True)
     title = Column(String, nullable=False)
     description = Column(String, nullable=False)
-    priority = Column(
-        Enum(PriorityEnum, values_callable=lambda x: [e.value for e in x], native_enum=False),
-        nullable=False,
-    )
-    category = Column(
-        Enum(CategoryEnum, values_callable=lambda x: [e.value for e in x], native_enum=False),
-        nullable=False,
-    )
-    status = Column(
-        Enum(StatusEnum, values_callable=lambda x: [e.value for e in x], native_enum=False),
-        nullable=False,
-        default=StatusEnum.open,
-    )
-    created_by = Column(Integer, ForeignKey("users.id"), nullable=False)
-    assignee_id = Column(Integer, ForeignKey("users.id"), nullable=True)
-    created_at = Column(DateTime, nullable=False, default=lambda: datetime.now(timezone.utc))
-    updated_at = Column(
-        DateTime,
-        nullable=False,
-        default=lambda: datetime.now(timezone.utc),
-        onupdate=lambda: datetime.now(timezone.utc),
-    )
+    status = Column(String, default="open", nullable=False)
+    category = Column(String, default="medium", nullable=False)
+    created_by = Column(String, nullable=False)
+    assigned_id = Column(Integer, ForeignKey("users.id"))
+    created_at = Column(Date, nullable=False, default=date.today)
+    updated_at = Column(Date, nullable=False, default=date.today)
 
-    creator = relationship("User", foreign_keys=[created_by], back_populates="tickets_created")
-    assignee = relationship("User", foreign_keys=[assignee_id], back_populates="tickets_assigned")
-    comments = relationship("Comment", back_populates="ticket", cascade="all, delete-orphan")
-    attachments = relationship("Attachment", back_populates="ticket", cascade="all, delete-orphan")
-
-    def __repr__(self):
-        return f"<Ticket id={self.id} status={self.status}>"
+    user = relationship("User", back_populates="tickets")
+    comments = relationship("Comment", back_populates="ticket")
+    attachments = relationship("Attachment", back_populates="tickets")

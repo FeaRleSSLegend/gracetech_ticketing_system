@@ -30,6 +30,7 @@ def get_current_user(
         detail="Could not validate credentials",
         headers={"WWW-Authenticate": "Bearer"},
     )
+
     try:
         payload = decode_access_token(token)
         user_id = payload.get("sub")
