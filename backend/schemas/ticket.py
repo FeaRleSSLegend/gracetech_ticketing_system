@@ -9,7 +9,7 @@ from models.enums import PriorityEnum, CategoryEnum, StatusEnum
 class TicketCreate(BaseModel):
     title: str
     description: str
-    priority: PriorityEnum
+    status: StatusEnum
     category: CategoryEnum
 
 
@@ -30,3 +30,8 @@ class TicketRead(BaseModel):
     assignee_id: Optional[int] = None
     created_at: datetime
     updated_at: datetime
+
+class TicketAssign(BaseModel):
+    assigneeName: str
+    actorName: str
+    actorRole: str
