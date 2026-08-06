@@ -8,7 +8,7 @@ from core.dependencies import get_db
 from models.ticket import Ticket
 from schemas.ticket import TicketCreate, TicketRead, TicketStatusUpdate, TicketAssign
 
-router = APIRouter(prefix="/api/tickets", tags=["tickets"])
+router = APIRouter(tags=["tickets"])
 
 @router.get("/", response_model=list[TicketRead])
 def get_tickets(db: Session = Depends(get_db)) -> list[Ticket]:

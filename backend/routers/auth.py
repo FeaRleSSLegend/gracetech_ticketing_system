@@ -8,7 +8,7 @@ from core.security import create_access_token, hash_password, verify_password
 from models.user import User
 from schemas.user import TokenResponse, UserCreate, UserLogin, UserRead
 
-router = APIRouter(prefix="/api/auth", tags=["auth"])
+router = APIRouter(tags=["auth"])
 
 
 @router.post("/register", response_model=UserRead)
