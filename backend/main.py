@@ -5,6 +5,10 @@ from fastapi.middleware.cors import CORSMiddleware
 
 from database import init_db
 from routers.auth import router as auth_router
+from routers import auth, tickets, comments, attachments
+
+
+
 
 app = FastAPI(title="Ticketing System API")
 app.include_router(auth_router)
@@ -26,9 +30,9 @@ app.add_middleware(
     allow_headers=["*"],
 )
 
-# Routers are added here once routers/ are implemented:
-# from routers import auth, tickets, comments, attachments
-# app.include_router(auth.router, prefix="/api/auth", tags=["auth"])
-# app.include_router(tickets.router, prefix="/api/tickets", tags=["tickets"])
-# app.include_router(comments.router, tags=["comments"])
-# app.include_router(attachments.router, tags=["attachments"])
+app.include_router(auth.router, prefix="/api/auth", tags=["auth"])
+app.include_router(tickets.router, prefix="/api/tickets", tags=["tickets"])
+# app.include_router(comments.router, prefix="/api/comments", tags=["comments"])
+# app.include_router(attachments.router, prefix="/api/attachments", tags=["attachments"])
+
+
