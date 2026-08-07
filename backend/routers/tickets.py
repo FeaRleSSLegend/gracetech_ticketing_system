@@ -1,12 +1,12 @@
-from datetime import date
-
 from fastapi import APIRouter, Depends, HTTPException, status
 from sqlalchemy.orm import Session
 
-from core.dependencies import get_db
+from core.dependencies import get_current_user, get_db, require_role
 
+from models.enums import RoleEnum, StatusEnum
 from models.ticket import Ticket
-from schemas.ticket import TicketCreate, TicketRead, TicketStatusUpdate, TicketAssign
+from models.user import User
+from schemas.ticket import TicketAssign, TicketCreate, TicketRead
 
 router = APIRouter(tags=["tickets"])
 
@@ -16,8 +16,16 @@ def get_tickets(db: Session = Depends(get_db)) -> list[Ticket]:
     return tickets
 
 @router.post("/", response_model=TicketRead)
-def create_ticket(ticket: TicketCreate, db: Session = Depends(get_db)) -> Ticket:
-    db_ticket = Ticket(**ticket.model_dump())
+def create_ticket(
+    ticket: TicketCreate,
+    db: Session = Depends(get_db),
+    current_user: User = Depends(get_current_user),
+) -> Ticket:
+    db_ticket = Ticket(
+        category=ticket.category,
+        comment=ticket.comment,
+        created_by_id=current_user.id,
+    )
     db.add(db_ticket)
     db.commit()
     db.refresh(db_ticket)
@@ -25,39 +33,26 @@ def create_ticket(ticket: TicketCreate, db: Session = Depends(get_db)) -> Ticket
 
 
 
-@router.post("/{id}/assign", response_model=dict)
+@router.post("/{id}/assign", response_model=TicketRead)
 def assign_ticket(
     id: int,
     assignment: TicketAssign,
     db: Session = Depends(get_db),
-    # TODO: Replace with proper authentication dependency that extracts user from JWT/session token
-    # authorization: str = Header(None)
-) -> dict:
-    # WARNING: Currently accepting actorRole from request body is a security vulnerability
-    # TODO: Extract actual user role from authenticated session/token instead
-    # For now, checking the provided actorRole but this should be replaced with:
-    # current_user = get_current_user_from_token(authorization)
-    # if current_user.role != "admin":
-    
-    if assignment.actorRole != "admin":
-        raise HTTPException(
-            status_code=status.HTTP_403_FORBIDDEN,
-            detail={"error": "Only admins can assign tickets"}
-        )
-    
+    current_user: User = Depends(require_role(RoleEnum.admin)),
+) -> Ticket:
     ticket = db.query(Ticket).filter(Ticket.id == id).first()
     if not ticket:
         raise HTTPException(
             status_code=status.HTTP_404_NOT_FOUND,
             detail={"error": "Ticket not found"}
         )
-    
-    ticket.assignedTo = assignment.assigneeName
-    ticket.assignedBy = assignment.actorName
-    ticket.status = "pending"
-    ticket.isNew = False
-    
+
+    ticket.assignee_id = assignment.assignee_id
+    ticket.assigned_by_id = current_user.id
+    ticket.status = StatusEnum.in_progress
+    ticket.is_new = False
+
     db.commit()
     db.refresh(ticket)
-    
-    return {"ticket": ticket}
+
+    return ticket

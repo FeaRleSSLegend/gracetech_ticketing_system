@@ -14,4 +14,4 @@ class Attachment(Base):
     file_url = Column(String, nullable=False)
     updated_at = Column(Date, nullable=False, default=date.today)
 
-    tickets = relationship("Ticket", back_populates="attachments")
+    ticket = relationship("Ticket", back_populates="attachments")

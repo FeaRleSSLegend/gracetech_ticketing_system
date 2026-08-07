@@ -1,4 +1,4 @@
-from datetime import date
+from datetime import datetime
 
 from pydantic import BaseModel, ConfigDict
 
@@ -20,7 +20,7 @@ class UserLogin(BaseModel):
 
 class UserRead(UserBase):
     id: int
-    created_at: date | None = None
+    created_at: datetime | None = None
 
     model_config = ConfigDict(from_attributes=True)
 

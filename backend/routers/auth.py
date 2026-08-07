@@ -1,5 +1,3 @@
-from datetime import date
-
 from fastapi import APIRouter, Depends, HTTPException, status
 from sqlalchemy.orm import Session
 
@@ -22,7 +20,6 @@ def register(user_create: UserCreate, db: Session = Depends(get_db)) -> User:
         email=user_create.email,
         password_hash=hash_password(user_create.password),
         role=user_create.role,
-        created_at=date.today(),
     )
     db.add(user)
     db.commit()

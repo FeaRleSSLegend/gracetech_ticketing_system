@@ -1,0 +1,10 @@
+{
+  "permissions": {
+    "allow": [
+      "PowerShell(Get-Command uv -ErrorAction SilentlyContinue)",
+      "PowerShell($env:VIRTUAL_ENV = \"C:\\\\Users\\\\MSI\\\\Projects\\\\gracetech_ticket_tracker\\\\backend\\\\.venv\"; uv pip install pytest httpx; .\\\\.venv\\\\Scripts\\\\python.exe -m pytest tests/test_auth.py -q)",
+      "PowerShell(.\\\\.venv\\\\Scripts\\\\python.exe -m pytest tests/test_auth.py -q)",
+      "PowerShell(.\\\\.venv\\\\Scripts\\\\python.exe -c \"import main; from sqlalchemy.orm import configure_mappers; configure_mappers\\(\\); print\\('mappers OK'\\)\")"
+    ]
+  }
+}

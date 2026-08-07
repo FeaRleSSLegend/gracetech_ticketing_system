@@ -21,7 +21,7 @@ class User(Base):
     created_at = Column(DateTime, nullable=False, default=lambda: datetime.now(timezone.utc))
 
     tickets_created = relationship(
-        "Ticket", foreign_keys="Ticket.created_by", back_populates="creator"
+        "Ticket", foreign_keys="Ticket.created_by_id", back_populates="creator"
     )
     tickets_assigned = relationship(
         "Ticket", foreign_keys="Ticket.assignee_id", back_populates="assignee"

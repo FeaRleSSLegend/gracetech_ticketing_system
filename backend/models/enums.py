@@ -3,21 +3,15 @@ import enum
 
 class RoleEnum(str, enum.Enum):
     employee = "employee"
-    agent = "agent"
-
-
-class PriorityEnum(str, enum.Enum):
-    low = "Low"
-    medium = "Medium"
-    high = "High"
-    critical = "Critical"
+    admin = "admin"
 
 
 class CategoryEnum(str, enum.Enum):
-    hardware = "Hardware"
-    software = "Software"
-    network = "Network"
-    access = "Access"
+    email = "email"
+    network = "network"
+    hardware = "hardware"
+    software = "software"
+    other = "other"
 
 
 class StatusEnum(str, enum.Enum):
