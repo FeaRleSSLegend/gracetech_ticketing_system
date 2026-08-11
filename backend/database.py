@@ -21,6 +21,7 @@ def set_sqlite_pragma(dbapi_connection, connection_record):
 def init_db() -> None:
     import models.attachment  # noqa: F401
     import models.comment  # noqa: F401
+    import models.notification  # noqa: F401
     import models.ticket  # noqa: F401
     import models.user  # noqa: F401
 

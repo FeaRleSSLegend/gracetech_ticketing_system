@@ -14,6 +14,11 @@ class CategoryEnum(str, enum.Enum):
     other = "other"
 
 
+class NotificationKindEnum(str, enum.Enum):
+    new_ticket = "new_ticket"
+    assigned = "assigned"
+
+
 class StatusEnum(str, enum.Enum):
     open = "open"
     in_progress = "in_progress"
