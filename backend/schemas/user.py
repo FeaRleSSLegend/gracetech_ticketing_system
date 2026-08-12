@@ -6,10 +6,16 @@ from models.enums import RoleEnum
 
 
 class UserCreate(BaseModel):
+    """Signup payload.
+
+    Deliberately has no `role` field: self-registration always produces an
+    employee. Admin accounts are created only via POST /api/admins, which is
+    gated by require_role(RoleEnum.admin).
+    """
+
     name: str
     email: str
     password: str
-    role: RoleEnum = RoleEnum.employee
 
 
 class UserLogin(BaseModel):

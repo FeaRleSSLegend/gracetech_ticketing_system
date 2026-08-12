@@ -3,6 +3,7 @@ from sqlalchemy.orm import Session
 
 from core.dependencies import get_db
 from core.security import create_access_token, hash_password, verify_password
+from models.enums import RoleEnum
 from models.user import User
 from schemas.user import AuthResponse, UserCreate, UserLogin, UserRead
 
@@ -19,7 +20,8 @@ def register(user_create: UserCreate, db: Session = Depends(get_db)) -> AuthResp
         name=user_create.name,
         email=user_create.email,
         password_hash=hash_password(user_create.password),
-        role=user_create.role,
+        # Never taken from the request body: self-signup is always an employee.
+        role=RoleEnum.employee,
     )
     db.add(user)
     db.commit()
