@@ -36,8 +36,10 @@ def test_register_and_login_flow():
 
     assert response.status_code == 200
     payload = response.json()
-    assert payload["email"] == "alice@example.com"
-    assert payload["name"] == "Alice"
+    assert payload["user"]["email"] == "alice@example.com"
+    assert payload["user"]["name"] == "Alice"
+    # Register issues a token too, so the client is logged in straight after signup.
+    assert payload["token"]
 
     login_response = client.post(
         "/api/auth/login",
