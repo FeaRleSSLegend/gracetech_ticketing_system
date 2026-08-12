@@ -3,14 +3,12 @@ from typing import Optional
 
 from pydantic import BaseModel, ConfigDict
 
-from models.enums import PriorityEnum, CategoryEnum, StatusEnum
+from models.enums import CategoryEnum, StatusEnum
 
 
 class TicketCreate(BaseModel):
-    title: str
-    description: str
-    status: StatusEnum = "open  "
     category: CategoryEnum
+    comment: str
 
 
 class TicketStatusUpdate(BaseModel):
@@ -21,17 +19,16 @@ class TicketRead(BaseModel):
     model_config = ConfigDict(from_attributes=True)
 
     id: int
-    title: str
-    description: str
-    priority: PriorityEnum
     category: CategoryEnum
+    comment: str
     status: StatusEnum
-    created_by: int
+    created_by_id: int
     assignee_id: Optional[int] = None
+    assigned_by_id: Optional[int] = None
+    is_new: bool
     created_at: datetime
-    updated_at: datetime
+    closed_on: Optional[datetime] = None
+
 
 class TicketAssign(BaseModel):
-    assigneeName: str
-    actorName: str
-    actorRole: str
+    assignee_id: int

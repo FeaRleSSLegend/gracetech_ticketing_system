@@ -1,5 +1,6 @@
 fastapi
 pydantic
 sqlalchemy
-jwt
+PyJWT
 uvicorn
+psycopg2-binary

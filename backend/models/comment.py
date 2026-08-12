@@ -1,6 +1,6 @@
-from datetime import date
+from datetime import datetime, timezone
 
-from sqlalchemy import Column, Date, ForeignKey, Integer, String
+from sqlalchemy import Column, DateTime, ForeignKey, Integer, String
 from sqlalchemy.orm import relationship
 
 from database import Base
@@ -13,7 +13,7 @@ class Comment(Base):
     ticket_id = Column(Integer, ForeignKey("tickets.id"))
     user_id = Column(Integer, ForeignKey("users.id"))
     body = Column(String, nullable=False)
-    created_at = Column(Date, nullable=False, default=date.today)
+    created_at = Column(DateTime, nullable=False, default=lambda: datetime.now(timezone.utc))
 
     ticket = relationship("Ticket", back_populates="comments")
     user = relationship("User", back_populates="comments")
