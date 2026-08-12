@@ -3,3 +3,4 @@ pydantic
 sqlalchemy
 PyJWT
 uvicorn
+psycopg2-binary
