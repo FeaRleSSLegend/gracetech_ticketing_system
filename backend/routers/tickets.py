@@ -1,5 +1,5 @@
 from fastapi import APIRouter, Depends, HTTPException, status
-from sqlalchemy.orm import Session
+from sqlalchemy.orm import Session, joinedload
 
 from core.dependencies import get_current_user, get_db, require_role
 
@@ -11,13 +11,30 @@ from schemas.ticket import TicketAssign, TicketCreate, TicketRead
 
 router = APIRouter(tags=["tickets"])
 
+
+def _with_users(query):
+    """Eager-load the three user relationships TicketRead serializes.
+
+    Without this the schema would lazy-load them one ticket at a time (an N+1),
+    and would fail outright if the session were already closed.
+    """
+    return query.options(
+        joinedload(Ticket.creator),
+        joinedload(Ticket.assignee),
+        joinedload(Ticket.assigned_by),
+    )
+
+
+def _load_ticket(db: Session, ticket_id: int) -> Ticket:
+    return _with_users(db.query(Ticket)).filter(Ticket.id == ticket_id).first()
+
+
 @router.get("/", response_model=list[TicketRead])
 def get_tickets(
     db: Session = Depends(get_db),
     current_user: User = Depends(get_current_user),
 ) -> list[Ticket]:
-    tickets = db.query(Ticket).all()
-    return tickets
+    return _with_users(db.query(Ticket)).all()
 
 @router.post("/", response_model=TicketRead)
 def create_ticket(
@@ -47,7 +64,7 @@ def create_ticket(
     )
     db.commit()
 
-    return db_ticket
+    return _load_ticket(db, db_ticket.id)
 
 
 
@@ -93,4 +110,4 @@ def assign_ticket(
     )
     db.commit()
 
-    return ticket
+    return _load_ticket(db, ticket.id)
