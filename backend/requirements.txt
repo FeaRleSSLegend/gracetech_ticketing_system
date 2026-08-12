@@ -4,3 +4,4 @@ sqlalchemy
 PyJWT
 uvicorn
 psycopg2-binary
+python-dotenv

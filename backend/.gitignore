@@ -72,6 +72,8 @@ node_modules/
 # Secret/local config
 .env
 .env.*
+# ...except the committed template, which holds no real values.
+!.env.example
 
 # Build directories
 build/

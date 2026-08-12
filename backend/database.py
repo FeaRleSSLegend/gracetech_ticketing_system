@@ -1,7 +1,13 @@
 import os
+from pathlib import Path
 
+from dotenv import load_dotenv
 from sqlalchemy import create_engine, event
 from sqlalchemy.orm import DeclarativeBase, sessionmaker
+
+# backend/.env for local development; a no-op on Render, where the environment
+# is populated from the dashboard.
+load_dotenv(Path(__file__).resolve().parent / ".env")
 
 DATABASE_URL = os.getenv("DATABASE_URL", "sqlite:///./ticketdatabase.db")
 
