@@ -1,0 +1,24 @@
+# Repo-root ignores. backend/.gitignore covers the backend tree; this file
+# catches anything dropped at the root or in sibling folders like scripts/.
+
+# Secrets and local config
+.env
+.env.*
+!.env.example
+*.pem
+*.key
+
+# Databases (they hold real user rows and password hashes)
+*.db
+*.sqlite3
+
+# Python
+__pycache__/
+*.py[cod]
+.venv/
+venv/
+.pytest_cache/
+
+# OS noise
+.DS_Store
+Thumbs.db
