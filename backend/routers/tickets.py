@@ -7,13 +7,13 @@ from models.enums import NotificationKindEnum, RoleEnum, StatusEnum
 from models.notification import Notification
 from models.ticket import Ticket
 from models.user import User
-from schemas.ticket import TicketAssign, TicketCreate, TicketRead
+from schemas.ticket import TicketCreate, TicketRead
 
 router = APIRouter(tags=["tickets"])
 
 
 def _with_users(query):
-    """Eager-load the three user relationships TicketRead serializes.
+    """Eager-load the user relationships TicketRead serializes.
 
     Without this the schema would lazy-load them one ticket at a time (an N+1),
     and would fail outright if the session were already closed.
@@ -21,7 +21,6 @@ def _with_users(query):
     return query.options(
         joinedload(Ticket.creator),
         joinedload(Ticket.assignee),
-        joinedload(Ticket.assigned_by),
     )
 
 
@@ -36,6 +35,7 @@ def get_tickets(
 ) -> list[Ticket]:
     return _with_users(db.query(Ticket)).all()
 
+
 @router.post("/", response_model=TicketRead)
 def create_ticket(
     ticket: TicketCreate,
@@ -45,6 +45,7 @@ def create_ticket(
     db_ticket = Ticket(
         category=ticket.category,
         comment=ticket.comment,
+        office=ticket.office,
         created_by_id=current_user.id,
     )
     db.add(db_ticket)
@@ -67,41 +68,38 @@ def create_ticket(
     return _load_ticket(db, db_ticket.id)
 
 
-
-@router.post("/{id}/assign", response_model=TicketRead)
-def assign_ticket(
+@router.post("/{id}/claim", response_model=TicketRead)
+def claim_ticket(
     id: int,
-    assignment: TicketAssign,
     db: Session = Depends(get_db),
     current_user: User = Depends(require_role(RoleEnum.admin)),
 ) -> Ticket:
+    """An admin takes an unclaimed ticket for themselves."""
     ticket = db.query(Ticket).filter(Ticket.id == id).first()
     if not ticket:
         raise HTTPException(
             status_code=status.HTTP_404_NOT_FOUND,
-            detail={"error": "Ticket not found"}
+            detail={"error": "Ticket not found"},
         )
 
-    assignee = db.get(User, assignment.assignee_id)
-    if assignee is None:
+    if ticket.assignee_id is not None:
         raise HTTPException(
-            status_code=status.HTTP_404_NOT_FOUND,
-            detail={"error": "Assignee not found"}
+            status_code=status.HTTP_409_CONFLICT,
+            detail={"error": "This ticket has already been claimed"},
         )
 
-    ticket.assignee_id = assignment.assignee_id
-    ticket.assigned_by_id = current_user.id
+    ticket.assignee_id = current_user.id
     ticket.status = StatusEnum.in_progress
     ticket.is_new = False
 
     db.commit()
     db.refresh(ticket)
 
-    # Directed at the assignee; the actor is the admin doing the assigning.
+    # Broadcast so the rest of the admins can see the ticket is taken.
     db.add(
         Notification(
-            kind=NotificationKindEnum.assigned,
-            recipient_id=ticket.assignee_id,
+            kind=NotificationKindEnum.claimed,
+            recipient_id=None,
             actor_id=current_user.id,
             ticket_id=ticket.id,
             category=ticket.category,

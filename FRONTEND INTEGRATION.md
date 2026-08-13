@@ -49,17 +49,25 @@ Auth required (any role). Returns every ticket in the system.
 Auth required.
 ```json
 // request
-{ "category": "email" | "network" | "hardware" | "software" | "other", "comment": "string" }
+{
+  "category": "email" | "network" | "hardware" | "software" | "other",
+  "comment": "string",
+  "office": "string"
+}
 ```
-`createdBy` is set server-side from the authenticated user, not from the body.
+`createdBy` is set server-side from the authenticated user, not from the body. `office` is free text (the department the ticket comes from), required, and not a fixed list.
 
-### `POST /api/tickets/:id/assign`
-**Admin only.**
-```json
-// request
-{ "assigneeId": number }
-```
-`assignedBy` and the status transition are derived server-side from the authenticated user, not from the body.
+### `POST /api/tickets/:id/claim`
+**Admin only.** Takes **no request body** — an admin claims a ticket for themselves, so the claimer is read from the token.
+
+Sets `assignedTo` to the claiming admin, `status` to `in_progress`, and `isNew` to `false`.
+
+| Response | When |
+| --- | --- |
+| `200` | Claimed, returns the updated ticket |
+| `409` | Already claimed by someone — `{ "detail": { "error": "This ticket has already been claimed" } }` |
+| `404` | No ticket with that id |
+| `401` | Caller isn't an admin |
 
 ### Ticket shape (all ticket endpoints)
 ```json
@@ -67,10 +75,10 @@ Auth required.
   "id": number,
   "category": "email" | "network" | "hardware" | "software" | "other",
   "comment": "string",
+  "office": "string",
   "status": "open" | "in_progress" | "resolved" | "closed",
   "createdBy": "string",
   "assignedTo": "string" | null,
-  "assignedBy": "string" | null,
   "isNew": boolean,
   "time": "ISO 8601 datetime",
   "closedOn": "ISO 8601 datetime" | null
@@ -106,7 +114,7 @@ Auth required. Returns broadcasts (`recipientName: null`) plus anything addresse
   "notifications": [
     {
       "id": number,
-      "kind": "new_ticket" | "assigned",
+      "kind": "new_ticket" | "claimed",
       "recipientName": "string" | null,
       "actorName": "string",
       "ticketId": number,
@@ -117,13 +125,22 @@ Auth required. Returns broadcasts (`recipientName: null`) plus anything addresse
   ]
 }
 ```
-Fires automatically: `new_ticket` (broadcast) on every `POST /tickets`, `assigned` (targeted at the assignee) on every successful `POST /tickets/:id/assign`.
+Fires automatically: `new_ticket` on every `POST /tickets`, `claimed` on every successful `POST /tickets/:id/claim`. Both are broadcasts (`recipientName: null`) — the claim notification goes to the whole admin team so everyone can see the ticket is taken.
 
-## Three deliberate deviations from the original spec doc — please confirm these don't break anything on your end
+## Breaking changes — assignment is now claiming
+
+If you built against an earlier version of this doc, these three things changed:
+
+1. **`POST /tickets/:id/assign` is gone.** Replaced by `POST /tickets/:id/claim`, which takes **no request body at all**. The old `{ "assigneeId": number }` payload no longer applies — one admin can no longer assign a ticket to a different admin, they can only claim it for themselves.
+2. **`assignedBy` no longer exists** anywhere in the API. It's off the ticket shape, and there's no column behind it any more. `assignedTo` stays and now means "the admin who claimed this".
+3. **Notification kind `"assigned"` is now `"claimed"`**, and it broadcasts rather than targeting one recipient.
+
+Also new: **`office` is a required field** on `POST /tickets/` and appears on every ticket response. Omitting it returns `422`.
+
+## Two deliberate deviations from the original spec doc — please confirm these don't break anything on your end
 
 1. **Roles are `employee` / `admin`**, not `user` / `admin`. If anything checks `role === "user"`, it needs to check `role === "employee"` instead.
-2. **Status values are `open` / `in_progress` / `resolved` / `closed`** (4 states), not `open` / `pending` / `resolved`. Assigning a ticket moves it to `in_progress`, not `pending`.
-3. **Assignment is by ID, not name.** `POST /tickets/:id/assign` takes `assigneeId`, not `assigneeName`. Use `GET /api/admins` to get real IDs to assign against.
+2. **Status values are `open` / `in_progress` / `resolved` / `closed`** (4 states), not `open` / `pending` / `resolved`. Claiming a ticket moves it to `in_progress`, not `pending`.
 
 ## CORS
 
