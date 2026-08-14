@@ -69,6 +69,24 @@ Sets `assignedTo` to the claiming admin, `status` to `in_progress`, and `isNew` 
 | `404` | No ticket with that id |
 | `401` | Caller isn't an admin |
 
+### `PATCH /api/tickets/:id`
+**Admin only.** Resolves or closes a ticket that is already being worked on.
+```json
+// request
+{ "status": "resolved" | "closed" }
+```
+Only those two values are accepted — `"open"` and `"in_progress"` return `422`. A ticket must be claimed first; this is not a shortcut around claiming.
+
+Sets `closedOn` to the current time (for both `resolved` and `closed`).
+
+| Response | When |
+| --- | --- |
+| `200` | Updated, returns the ticket |
+| `409` | Ticket isn't `in_progress` — `{ "detail": { "error": "Ticket must be in progress before it can be resolved or closed" } }` |
+| `422` | Status was something other than `resolved` / `closed` |
+| `404` | No ticket with that id |
+| `401` | Caller isn't an admin |
+
 ### Ticket shape (all ticket endpoints)
 ```json
 {
@@ -106,15 +124,17 @@ Auth required.
 
 ## Notifications
 
-### `GET /api/notifications/?name=<adminName>`
-Auth required. Returns broadcasts (`recipientName: null`) plus anything addressed to that admin by name. Unknown name → empty list, not an error.
+### `GET /api/notifications/?name=<userName>`
+Auth required. Returns broadcasts (`recipientName: null`) plus anything addressed to that **user** by name — employee or admin. Unknown name → empty list, not an error.
+
+Pass the logged-in user's own `name` (from the login response). Employees get their own resolved/closed notifications this way; admins get the broadcasts plus anything aimed at them.
 
 ```json
 {
   "notifications": [
     {
       "id": number,
-      "kind": "new_ticket" | "claimed",
+      "kind": "new_ticket" | "claimed" | "resolved" | "closed",
       "recipientName": "string" | null,
       "actorName": "string",
       "ticketId": number,
@@ -125,7 +145,18 @@ Auth required. Returns broadcasts (`recipientName: null`) plus anything addresse
   ]
 }
 ```
-Fires automatically: `new_ticket` on every `POST /tickets`, `claimed` on every successful `POST /tickets/:id/claim`. Both are broadcasts (`recipientName: null`) — the claim notification goes to the whole admin team so everyone can see the ticket is taken.
+All four kinds fire automatically. The important distinction is **who they reach**:
+
+| Kind | Fired by | Reaches |
+| --- | --- | --- |
+| `new_ticket` | `POST /tickets` | Broadcast — `recipientName: null`, every admin sees it |
+| `claimed` | `POST /tickets/:id/claim` | Broadcast — so the rest of the admins see it's taken |
+| `resolved` | `PATCH /tickets/:id` with `resolved` | **Targeted** — `recipientName` is the employee who filed it |
+| `closed` | `PATCH /tickets/:id` with `closed` | **Targeted** — same |
+
+`actorName` is always the person who caused it: the employee for `new_ticket`, the admin for the other three.
+
+So an employee polling `?name=<their own name>` sees the broadcasts plus their own `resolved`/`closed` updates. If you want employees to see *only* their own updates, filter client-side on `recipientName !== null`.
 
 ## Breaking changes — assignment is now claiming
 
@@ -136,6 +167,12 @@ If you built against an earlier version of this doc, these three things changed:
 3. **Notification kind `"assigned"` is now `"claimed"`**, and it broadcasts rather than targeting one recipient.
 
 Also new: **`office` is a required field** on `POST /tickets/` and appears on every ticket response. Omitting it returns `422`.
+
+### Since then
+
+4. **`PATCH /tickets/:id` is new** — the resolve/close step. Full ticket lifecycle is now: `POST /tickets` → `POST /tickets/:id/claim` → `PATCH /tickets/:id`.
+5. **Notification `kind` gained `"resolved"` and `"closed"`.** If anything switches on `kind`, it needs branches for these or a sensible default — and unlike the first two, they're targeted rather than broadcast.
+6. **`GET /notifications/?name=` is no longer admin-only.** It previously matched admins only, so passing an employee's name returned just the broadcasts. It now matches any user by name, which is what makes employee-targeted notifications reachable at all.
 
 ## Two deliberate deviations from the original spec doc — please confirm these don't break anything on your end
 

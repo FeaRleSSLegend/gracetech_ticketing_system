@@ -17,6 +17,8 @@ class CategoryEnum(str, enum.Enum):
 class NotificationKindEnum(str, enum.Enum):
     new_ticket = "new_ticket"
     claimed = "claimed"
+    resolved = "resolved"
+    closed = "closed"
 
 
 class StatusEnum(str, enum.Enum):

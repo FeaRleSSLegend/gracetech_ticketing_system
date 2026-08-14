@@ -1,57 +1,16 @@
-import os
-import sys
-import tempfile
 from datetime import timedelta
 
-import pytest
 from fastapi.testclient import TestClient
-from sqlalchemy import create_engine, event
-from sqlalchemy.orm import sessionmaker
 
-sys.path.insert(0, os.path.dirname(os.path.dirname(__file__)))
-
-import models  # noqa: F401  (registers every model on Base.metadata)
-from core.dependencies import get_db
+# Engine, get_db override and the per-test fresh_database fixture all live in
+# conftest.py so every test module shares them.
+from conftest import TestingSessionLocal
 from core.security import create_access_token
-from database import Base
 from main import app
 from models.enums import RoleEnum
 from models.user import User
 
-# The tests run against their own throwaway database, never the dev
-# ticketdatabase.db, so they neither depend on nor destroy real data.
-TEST_DB_PATH = os.path.join(tempfile.gettempdir(), "gracetech_test_auth.db")
-test_engine = create_engine(
-    f"sqlite:///{TEST_DB_PATH}", connect_args={"check_same_thread": False}
-)
-TestingSessionLocal = sessionmaker(autocommit=False, autoflush=False, bind=test_engine)
-
-
-@event.listens_for(test_engine, "connect")
-def _set_sqlite_pragma(dbapi_connection, connection_record):
-    cursor = dbapi_connection.cursor()
-    cursor.execute("PRAGMA foreign_keys=ON")
-    cursor.close()
-
-
-def override_get_db():
-    db = TestingSessionLocal()
-    try:
-        yield db
-    finally:
-        db.close()
-
-
-app.dependency_overrides[get_db] = override_get_db
-
 client = TestClient(app)
-
-
-@pytest.fixture(autouse=True)
-def fresh_database():
-    Base.metadata.drop_all(bind=test_engine)
-    Base.metadata.create_all(bind=test_engine)
-    yield
 
 
 def register(**overrides):
