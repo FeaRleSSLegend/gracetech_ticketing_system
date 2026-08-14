@@ -1,5 +1,5 @@
 from datetime import datetime
-from typing import Any, Optional
+from typing import Any, Literal, Optional
 
 from pydantic import BaseModel, ConfigDict, model_validator
 
@@ -13,7 +13,13 @@ class TicketCreate(BaseModel):
 
 
 class TicketStatusUpdate(BaseModel):
-    status: StatusEnum
+    """Payload for PATCH /api/tickets/{id}.
+
+    Only resolved and closed are accepted: reopening a ticket or pushing it
+    back to in_progress is not something this endpoint does.
+    """
+
+    status: Literal[StatusEnum.resolved, StatusEnum.closed]
 
 
 class TicketRead(BaseModel):

@@ -1,3 +1,5 @@
+from datetime import datetime, timezone
+
 from fastapi import APIRouter, Depends, HTTPException, status
 from sqlalchemy.orm import Session, joinedload
 
@@ -7,7 +9,7 @@ from models.enums import NotificationKindEnum, RoleEnum, StatusEnum
 from models.notification import Notification
 from models.ticket import Ticket
 from models.user import User
-from schemas.ticket import TicketCreate, TicketRead
+from schemas.ticket import TicketCreate, TicketRead, TicketStatusUpdate
 
 router = APIRouter(tags=["tickets"])
 
@@ -100,6 +102,52 @@ def claim_ticket(
         Notification(
             kind=NotificationKindEnum.claimed,
             recipient_id=None,
+            actor_id=current_user.id,
+            ticket_id=ticket.id,
+            category=ticket.category,
+            comment=ticket.comment,
+        )
+    )
+    db.commit()
+
+    return _load_ticket(db, ticket.id)
+
+
+@router.patch("/{id}", response_model=TicketRead)
+def update_ticket_status(
+    id: int,
+    update: TicketStatusUpdate,
+    db: Session = Depends(get_db),
+    current_user: User = Depends(require_role(RoleEnum.admin)),
+) -> Ticket:
+    """Resolve or close a ticket that is already being worked on."""
+    ticket = db.query(Ticket).filter(Ticket.id == id).first()
+    if not ticket:
+        raise HTTPException(
+            status_code=status.HTTP_404_NOT_FOUND,
+            detail={"error": "Ticket not found"},
+        )
+
+    if ticket.status != StatusEnum.in_progress:
+        raise HTTPException(
+            status_code=status.HTTP_409_CONFLICT,
+            detail={
+                "error": "Ticket must be in progress before it can be resolved or closed"
+            },
+        )
+
+    ticket.status = update.status
+    ticket.closed_on = datetime.now(timezone.utc)
+
+    db.commit()
+    db.refresh(ticket)
+
+    # Targeted, unlike new_ticket/claimed: the employee who filed it is the one
+    # who needs to hear that it is done.
+    db.add(
+        Notification(
+            kind=NotificationKindEnum(update.status.value),
+            recipient_id=ticket.created_by_id,
             actor_id=current_user.id,
             ticket_id=ticket.id,
             category=ticket.category,
