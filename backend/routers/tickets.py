@@ -5,6 +5,8 @@ from sqlalchemy.orm import Session, joinedload
 
 from core.dependencies import get_current_user, get_db, require_role
 
+from models.attachment import Attachment
+from models.comment import Comment
 from models.enums import NotificationKindEnum, RoleEnum, StatusEnum
 from models.notification import Notification
 from models.ticket import Ticket
@@ -157,3 +159,47 @@ def update_ticket_status(
     db.commit()
 
     return _load_ticket(db, ticket.id)
+
+
+@router.delete("/{id}")
+def delete_ticket(
+    id: int,
+    db: Session = Depends(get_db),
+    current_user: User = Depends(require_role(RoleEnum.admin)),
+) -> dict:
+    """Permanently remove a ticket and everything hanging off it.
+
+    notifications.ticket_id is NOT NULL, so those rows cannot simply be
+    detached -- they go with the ticket. Comments and attachments belong to the
+    ticket and mean nothing without it, so they go too.
+    """
+    ticket = db.query(Ticket).filter(Ticket.id == id).first()
+    if ticket is None:
+        raise HTTPException(
+            status_code=status.HTTP_404_NOT_FOUND,
+            detail={"error": "Ticket not found"},
+        )
+
+    notifications = db.query(Notification).filter(
+        Notification.ticket_id == ticket.id
+    ).delete(synchronize_session=False)
+    comments = db.query(Comment).filter(
+        Comment.ticket_id == ticket.id
+    ).delete(synchronize_session=False)
+    attachments = db.query(Attachment).filter(
+        Attachment.ticket_id == ticket.id
+    ).delete(synchronize_session=False)
+
+    removed = {"id": ticket.id, "comment": ticket.comment, "office": ticket.office}
+    db.delete(ticket)
+    db.commit()
+
+    return {
+        "detail": "Ticket deleted",
+        "ticket": removed,
+        "deleted": {
+            "notifications": notifications,
+            "comments": comments,
+            "attachments": attachments,
+        },
+    }
