@@ -87,6 +87,28 @@ Sets `closedOn` to the current time (for both `resolved` and `closed`).
 | `404` | No ticket with that id |
 | `401` | Caller isn't an admin |
 
+### `DELETE /api/tickets/:id`
+**Admin only.** Permanently deletes a ticket. No request body. There is no undo.
+
+```json
+// 200 response
+{
+  "detail": "Ticket deleted",
+  "ticket": { "id": number, "comment": "string", "office": "string" },
+  "deleted": { "notifications": number, "comments": number, "attachments": number }
+}
+```
+
+The ticket's comments, attachments, and notifications go with it — `deleted` reports how many of each were removed. Any notification referencing this ticket disappears from `GET /notifications/` too, so refresh notification badges after a delete.
+
+Works at any status: a ticket does not need to be resolved or closed first.
+
+| Response | When |
+| --- | --- |
+| `200` | Deleted |
+| `404` | No ticket with that id |
+| `401` | Caller isn't an admin |
+
 ### Ticket shape (all ticket endpoints)
 ```json
 {
@@ -121,6 +143,35 @@ Auth required.
 
 ### `POST /api/admins`
 **Admin only.** Creates a new admin account. `role` is forced to `"admin"` server-side.
+
+### `DELETE /api/admins/:id`
+**Admin only.** Removes another admin account. No request body.
+
+```json
+// 200 response
+{
+  "detail": "Admin removed",
+  "admin": { "id": number, "name": "string", "email": "string" },
+  "ticketsReleased": number
+}
+```
+
+`ticketsReleased` is how many tickets that admin had claimed. Those tickets are handed back to the pool — `assignedTo` returns to `null` and an `in_progress` ticket goes back to `open`, so another admin can claim it. Refresh any ticket list after a successful delete, since rows you were showing as claimed may now be open.
+
+| Response | When |
+| --- | --- |
+| `200` | Removed |
+| `400` | You tried to remove your own account |
+| `409` | Last remaining admin, or the admin filed tickets themselves (see below) |
+| `404` | No admin with that id — also returned for an *employee's* id, since this route only sees admins |
+| `401` | Caller isn't an admin |
+
+Two refusals worth handling in the UI, both `409` with a readable `detail.error`:
+
+- **"Cannot remove the last remaining admin"** — removing them would leave nobody able to reach any admin route.
+- **"This admin filed N ticket(s) and cannot be removed."** — an admin who submitted tickets as a user. Their tickets would have to be destroyed along with the account, so the delete is refused instead. Delete those tickets first with `DELETE /api/tickets/:id`.
+
+Their comments survive the delete with the author detached, and notifications they sent or received are removed.
 
 ## Notifications
 
@@ -173,6 +224,10 @@ Also new: **`office` is a required field** on `POST /tickets/` and appears on ev
 4. **`PATCH /tickets/:id` is new** — the resolve/close step. Full ticket lifecycle is now: `POST /tickets` → `POST /tickets/:id/claim` → `PATCH /tickets/:id`.
 5. **Notification `kind` gained `"resolved"` and `"closed"`.** If anything switches on `kind`, it needs branches for these or a sensible default — and unlike the first two, they're targeted rather than broadcast.
 6. **`GET /notifications/?name=` is no longer admin-only.** It previously matched admins only, so passing an employee's name returned just the broadcasts. It now matches any user by name, which is what makes employee-targeted notifications reachable at all.
+7. **`DELETE /admins/:id` is new** — admin removal. It can refuse with `409` in two cases, so don't assume success; surface `detail.error` to the user.
+8. **`DELETE /tickets/:id` is new** — admin-only, permanent, and takes the ticket's comments and notifications with it. Worth a confirmation step in the UI.
+
+If you saw `GET /notifications/?name=` returning `500` (and what looked like a CORS error alongside it), that was one bug, not two: notification rows written before the `assigned` → `claimed` rename could not be loaded, and the crash meant no CORS headers were attached to the response. Fixed server-side; no frontend change needed.
 
 ## Two deliberate deviations from the original spec doc — please confirm these don't break anything on your end
 
@@ -181,4 +236,11 @@ Also new: **`office` is a required field** on `POST /tickets/` and appears on ev
 
 ## CORS
 
-Dev origin (`http://localhost:3000` or whatever your dev server runs on) needs to be confirmed as allowed on the backend, let us know your actual dev URL if it's not the default.
+Currently allowed origins:
+
+- `https://grace-tech-ticketing-system-fronten.vercel.app`
+- `http://localhost:5500` and `http://127.0.0.1:5500`
+
+If your dev server runs anywhere else (Vite's `:5173`, CRA's `:3000`), tell us the URL and we'll add it — an origin that isn't on this list fails in the browser even though the API itself is fine.
+
+A CORS error in the console does not always mean a CORS misconfiguration. If the request also `500`s, the error handler returns before CORS headers are attached, so the browser reports it as a CORS failure. Check the response status before assuming it's an origin problem.

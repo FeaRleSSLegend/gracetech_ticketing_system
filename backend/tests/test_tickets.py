@@ -228,3 +228,68 @@ def test_status_enum_unchanged_for_tickets():
         "resolved",
         "closed",
     }
+
+
+def test_delete_ticket_removes_it_and_its_children():
+    emp_token, _ = make_employee()
+    admin_token, _ = make_admin()
+    ticket = open_ticket(emp_token)
+    client.post(f"/api/tickets/{ticket['id']}/claim", headers=bearer(admin_token))
+    client.post(
+        f"/api/comments/{ticket['id']}",
+        json={"body": "on it"},
+        headers=bearer(admin_token),
+    )
+
+    response = client.delete(
+        f"/api/tickets/{ticket['id']}", headers=bearer(admin_token)
+    )
+
+    assert response.status_code == 200
+    body = response.json()
+    assert body["ticket"]["id"] == ticket["id"]
+    # new_ticket + claimed both referenced this ticket via a NOT NULL FK.
+    assert body["deleted"]["notifications"] == 2
+    assert body["deleted"]["comments"] == 1
+
+    assert client.get("/api/tickets/", headers=bearer(emp_token)).json() == []
+    assert client.get(
+        f"/api/comments/{ticket['id']}", headers=bearer(admin_token)
+    ).status_code == 404
+    # The notifications endpoint still works after the rows are gone.
+    assert notifications_for("Emma Employee", emp_token) == []
+
+
+def test_delete_ticket_is_admin_only_and_404s():
+    emp_token, _ = make_employee()
+    admin_token, _ = make_admin()
+    ticket = open_ticket(emp_token)
+
+    assert client.delete(
+        f"/api/tickets/{ticket['id']}", headers=bearer(emp_token)
+    ).status_code == 401
+    assert client.delete(
+        "/api/tickets/9999", headers=bearer(admin_token)
+    ).status_code == 404
+    # Still there after the refused attempts.
+    assert len(client.get("/api/tickets/", headers=bearer(admin_token)).json()) == 1
+
+
+def test_deleting_tickets_unblocks_admin_removal():
+    """The 409 from DELETE /api/admins/:id is now actionable."""
+    from conftest import TestingSessionLocal as _S  # noqa: F401
+
+    keeper_token, _ = make_admin(name="Keeper", email="keeper@example.com")
+    doomed_token, doomed_id = make_admin(name="Doomed", email="doomed@example.com")
+    # An admin who filed their own ticket cannot be removed...
+    own = open_ticket(doomed_token, comment="my own problem")
+    blocked = client.delete(f"/api/admins/{doomed_id}", headers=bearer(keeper_token))
+    assert blocked.status_code == 409
+
+    # ...until that ticket is deleted.
+    assert client.delete(
+        f"/api/tickets/{own['id']}", headers=bearer(keeper_token)
+    ).status_code == 200
+    assert client.delete(
+        f"/api/admins/{doomed_id}", headers=bearer(keeper_token)
+    ).status_code == 200
