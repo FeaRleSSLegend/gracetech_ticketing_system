@@ -43,3 +43,21 @@ class UserRead(BaseModel):
 class AuthResponse(BaseModel):
     user: UserRead
     token: str
+
+
+class UserListItem(BaseModel):
+    """Minimal employee row for the admin-facing user list.
+
+    id stays an int here, unlike UserRead's string id -- the frontend contract
+    for this list asks for a number.
+    """
+
+    model_config = ConfigDict(from_attributes=True)
+
+    id: int
+    name: str
+    email: str
+
+
+class UserListResponse(BaseModel):
+    users: list[UserListItem]

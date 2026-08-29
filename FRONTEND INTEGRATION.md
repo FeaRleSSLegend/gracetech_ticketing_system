@@ -173,6 +173,32 @@ Two refusals worth handling in the UI, both `409` with a readable `detail.error`
 
 Their comments survive the delete with the author detached, and notifications they sent or received are removed.
 
+## Users (employees)
+
+Admin-facing management of employee accounts. Admins are managed separately under `/api/admins`.
+
+### `GET /api/users`
+**Admin only.** Every employee — admins are not included.
+
+```json
+{ "users": [ { "id": number, "name": "string", "email": "string" } ] }
+```
+
+Note the wrapper object, unlike `GET /api/admins` which returns a bare array.
+
+### `DELETE /api/users/:id`
+**Admin only.** Removes an employee account. No request body, and **`204` with an empty body on success** — don't try to parse JSON off it.
+
+| Response | When |
+| --- | --- |
+| `204` | Deleted, no body |
+| `409` | Employee has tickets — `{ "detail": { "error": "Cannot delete a user with existing tickets: ..." } }` |
+| `403` | The id belongs to an admin — use `DELETE /api/admins/:id` instead |
+| `404` | No user with that id |
+| `401` | Caller isn't an admin |
+
+**Most employees will hit the `409`**, since filing tickets is what employees do. To actually remove such an account, delete their tickets first with `DELETE /api/tickets/:id`. Their comments survive with the author detached; their notifications are removed.
+
 ## Notifications
 
 ### `GET /api/notifications/?name=<userName>`
@@ -226,6 +252,7 @@ Also new: **`office` is a required field** on `POST /tickets/` and appears on ev
 6. **`GET /notifications/?name=` is no longer admin-only.** It previously matched admins only, so passing an employee's name returned just the broadcasts. It now matches any user by name, which is what makes employee-targeted notifications reachable at all.
 7. **`DELETE /admins/:id` is new** — admin removal. It can refuse with `409` in two cases, so don't assume success; surface `detail.error` to the user.
 8. **`DELETE /tickets/:id` is new** — admin-only, permanent, and takes the ticket's comments and notifications with it. Worth a confirmation step in the UI.
+9. **`GET /api/users` and `DELETE /api/users/:id` are new** — admin-facing employee management. The delete returns `204` with **no body**, unlike the admin and ticket deletes which return `200` with a JSON summary. Check the status code rather than assuming a body is there.
 
 If you saw `GET /notifications/?name=` returning `500` (and what looked like a CORS error alongside it), that was one bug, not two: notification rows written before the `assigned` → `claimed` rename could not be loaded, and the crash meant no CORS headers were attached to the response. Fixed server-side; no frontend change needed.
 
