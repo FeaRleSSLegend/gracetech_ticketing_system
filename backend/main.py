@@ -11,7 +11,7 @@ from core.security import hash_password
 from database import SessionLocal, init_db
 from models.enums import NotificationKindEnum, RoleEnum
 from models.user import User
-from routers import admins, auth, comments, notifications, tickets
+from routers import admins, auth, comments, notifications, tickets, users
 
 # uvicorn configures this logger at INFO level, so these lines land in Render's
 # logs alongside the server's own startup output.
@@ -138,6 +138,7 @@ app.add_middleware(
 app.include_router(auth.router, prefix="/api/auth", tags=["auth"])
 app.include_router(tickets.router, prefix="/api/tickets", tags=["tickets"])
 app.include_router(admins.router, prefix="/api/admins", tags=["admins"])
+app.include_router(users.router, prefix="/api/users", tags=["users"])
 app.include_router(comments.router, prefix="/api/comments", tags=["comments"])
 app.include_router(
     notifications.router, prefix="/api/notifications", tags=["notifications"]
